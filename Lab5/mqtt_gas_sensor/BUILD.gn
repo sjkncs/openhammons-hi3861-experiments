@@ -1,0 +1,31 @@
+# Lab5 - MQTT 燃气传感器 BUILD.gn
+# 需要依赖: third_party/cJSON, pahomqtt, easy_wifi
+
+static_library("mqtt_gas_sensor") {
+    sources = [
+        "main.c",
+        "gas_sensor.c",
+    ]
+
+    include_dirs = [
+        "//utils/native/lite/include",
+        "//kernel/liteos_m/kal/cmsis",
+        "//base/iot_hardware/peripheral/interfaces/kits",
+        # cJSON
+        "//third_party/cJSON",
+        # MQTT Paho
+        "//third_party/pahomqtt/MQTTPacket/src",
+        "//third_party/pahomqtt/MQTTClient-C/src",
+        "//third_party/pahomqtt/MQTTClient-C/src/liteOS",
+        # WiFi
+        "//foundation/communication/wifi_lite/interfaces/wifiservice",
+        # Easy WiFi 封装
+        "//applications/sample/wifi-iot/library/easy_wifi/src",
+    ]
+
+    deps = [
+        "//third_party/pahomqtt:pahomqtt_static",
+        "//third_party/cJSON:cJSON",
+        "//applications/sample/wifi-iot/library/easy_wifi:easy_wifi",
+    ]
+}

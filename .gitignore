@@ -1,0 +1,32 @@
+# 编译输出
+out/
+build/
+*.o
+*.a
+*.so
+*.dll
+*.exe
+*.bin
+*.elf
+*.map
+*.lst
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*~
+.DS_Store
+Thumbs.db
+
+# 临时 / 草稿
+__pycache__/
+*.pyc
+*.log
+
+# HiBurn / 烧录工具临时文件
+*.hex
+*.asm
+
+# 不要忽略源码中的 BUILD.gn 和 mosquitto.conf（项目必要文件）
+# 也不忽略 .c/.h/.py/.md/.gn/.conf

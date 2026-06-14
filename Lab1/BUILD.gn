@@ -1,0 +1,25 @@
+# Lab1 BUILD.gn - 消息队列示例
+
+# 任务一：Hello程序
+static_library("hello_world") {
+    sources = [
+        "task1_hello/hello_world.c"
+    ]
+    include_dirs = [
+        "//utils/native/lite/include",
+        "//kernel/liteos_m/components/lib/libc/minilibc/include"
+    ]
+}
+
+# 任务二：消息队列
+static_library("msg_queue_demo") {
+    sources = [
+        "task2_msgqueue/msg_queue_demo.c"
+    ]
+    include_dirs = [
+        "//utils/native/lite/include",
+        "//kernel/liteos_m/components/lib/libc/minilibc/include",
+        "//kernel/liteos_m/hal",
+        "//foundation/distributedservices/utils/lite/adapter/include"
+    ]
+}
