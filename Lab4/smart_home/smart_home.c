@@ -38,14 +38,16 @@
 #define MQTT_USERNAME     "admin"
 #define MQTT_PASSWORD     "admin"
 
-// 华为云 IoTDA 配置（使用华为云时取消注释）
+// 华为云 IoTDA 配置（使用华为云时取消注释并填入您自己的设备凭证）
+// 历史版本曾把课程分配的 DEVICE_ID / Password 写在注释里并推到公开仓库;
+// 任何拿到代码的人都能直接接入您的设备。下面用占位符代替。
 // #define USE_HUAWEI_CLOUD
-// #define MQTT_BROKER_HOST  "a160268647.iot-mqtts.cn-north-4.myhuaweicloud.com"
+// #define MQTT_BROKER_HOST  "YOUR_HUAWEI_CLOUD_MQTT_BROKER"
 // #define MQTT_BROKER_PORT  1883
-// #define DEVICE_ID         "你的设备ID"
-// #define MQTT_CLIENT_ID    "687110970bd2a878b9f87b44_Hi3861_0_0_2025071207"
-// #define MQTT_USERNAME     "687110970bd2a878b9f87b44_Hi3861"
-// #define MQTT_PASSWORD     "b434c168a7bcee9ee61c99cbfacad5db84ebf668a458b7d63773af10376fcaad"
+// #define DEVICE_ID         "YOUR_DEVICE_ID"
+// #define MQTT_CLIENT_ID    "YOUR_CLIENT_ID"
+// #define MQTT_USERNAME     "YOUR_USERNAME"
+// #define MQTT_PASSWORD     "YOUR_HUAWEI_CLOUD_PASSWORD"
 
 /*=====================================================*/
 

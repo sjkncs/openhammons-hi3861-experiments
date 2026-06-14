@@ -23,15 +23,15 @@
 // ⚠️ 请登录华为云控制台获取您的设备凭证
 // 地址：https://console.huaweicloud.com/iotda/
 
-// 华为云IoTDA接入地址（可在实例信息中查看）
-#define HUAWEI_CLOUD_ADDR   "a160268647.iot-mqtts.cn-north-4.myhuaweicloud.com"
+// 华为云IoTDA接入地址（占位符, 真实地址请通过 menuconfig 注入, 不要 commit 真实值）
+#define HUAWEI_CLOUD_ADDR   "YOUR_HUAWEI_CLOUD_MQTT_BROKER"
 #define HUAWEI_CLOUD_PORT   1883
 
-// 设备凭证（请替换为您的实际设备信息）
-#define DEVICE_ID           "您的设备ID"           // 例如：687110970bd2a878b9f87b44_Hi3861
-#define MQTT_CLIENT_ID      "您的ClientID"        // 例如：687110970bd2a878b9f87b44_Hi3861_0_0_2025071207
-#define MQTT_USERNAME       "您的用户名"           // 通常与设备ID相同
-#define MQTT_PASSWORD       "您的密码"             // HMAC-SHA256签名生成的密码
+// 设备凭证（占位符, 真实凭证请通过 menuconfig 注入, 不要 commit 真实值）
+#define DEVICE_ID           "YOUR_DEVICE_ID"
+#define MQTT_CLIENT_ID      "YOUR_CLIENT_ID"
+#define MQTT_USERNAME       "YOUR_USERNAME"
+#define MQTT_PASSWORD       "YOUR_HUAWEI_CLOUD_PASSWORD"
 
 
 /*==================== MQTT Topic配置 ====================*/

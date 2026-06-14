@@ -36,14 +36,17 @@
 #define PARAM_HOTSPOT_TYPE  WIFI_SEC_TYPE_PSK
 
 // 华为云 IoTDA 接入地址
-#define HOST_ADDR   "a160268647.iot-mqtts.cn-north-4.myhuaweicloud.com"
-#define HOST_PORT   1883
+#define HOST_ADDR            "YOUR_HUAWEI_CLOUD_MQTT_BROKER"
+#define HOST_PORT            1883
 
-// 设备信息 (需替换为课程分配的设备凭证)
-#define DEVICE_ID       "687110970bd2a878b9f87b44_Hi3861"
-#define MQTT_CLIENT_ID  "687110970bd2a878b9f87b44_Hi3861_0_0_2025071207"
-#define MQTT_USERNAME   "687110970bd2a878b9f87b44_Hi3861"
-#define MQTT_PASSWORD   "b434c168a7bcee9ee61c99cbfacad5db84ebf668a458b7d63773af10376fcaad"
+// 设备信息 — 下面的 DEVICE_ID / MQTT_PASSWORD 等需要替换为您自己的设备凭证
+// 注意: 历史版本曾把课程分配的 DEVICE_ID / Password 直接写进源码;
+// 这意味着任何拿到这份代码的人都能直接接入您的设备。
+// 请使用占位符, 真实凭证通过 menuconfig / 环境变量注入, 不要 commit 进来。
+#define DEVICE_ID            "YOUR_DEVICE_ID"
+#define MQTT_CLIENT_ID       "YOUR_CLIENT_ID"
+#define MQTT_USERNAME        "YOUR_USERNAME"
+#define MQTT_PASSWORD        "YOUR_HUAWEI_CLOUD_PASSWORD"
 
 // MQTT Topic (华为云标准格式)
 #define PUBLISH_TOPIC   "$oc/devices/" DEVICE_ID "/sys/properties/report"

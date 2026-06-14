@@ -24,7 +24,7 @@
 1. 登录 [华为云控制台](https://console.huaweicloud.com/iotda/)
 2. 选择 "设备接入" 服务
 3. 创建标准版实例（或使用已有的）
-4. 记下 **接入地址** (如 `a160268647.iot-mqtts.cn-north-4.myhuaweicloud.com`)
+4. 记下 **接入地址** (形如 `a16xxxxxxxxx.iot-mqtts.cn-north-4.myhuaweicloud.com`，**不要直接 commit 真实地址**)
 
 ### 步骤 2: 注册设备
 
@@ -59,15 +59,15 @@
 ## MQTT 连接参数
 
 ```c
-// 华为云 IoTDA MQTT 接入地址
-#define HOST_ADDR     "a160268647.iot-mqtts.cn-north-4.myhuaweicloud.com"
+// 华为云 IoTDA MQTT 接入地址（占位符, 真实地址请通过 menuconfig 注入）
+#define HOST_ADDR     "YOUR_HUAWEI_CLOUD_MQTT_BROKER"
 #define HOST_PORT     1883
 
-// 设备信息（替换为课程分配的）
-#define DEVICE_ID     "687110970bd2a878b9f87b44_Hi3861"
-#define MQTT_CLIENT_ID "687110970bd2a878b9f87b44_Hi3861_0_0_2025071207"
-#define MQTT_USERNAME "687110970bd2a878b9f87b44_Hi3861"
-#define MQTT_PASSWORD "b434c168a7bcee9ee61c99cbfacad5db84ebf668a458b7d63773af10376fcaad"
+// 设备信息（占位符, 真实凭证请通过 menuconfig 注入, 不要 commit 真实值）
+#define DEVICE_ID     "YOUR_DEVICE_ID"
+#define MQTT_CLIENT_ID "YOUR_CLIENT_ID"
+#define MQTT_USERNAME "YOUR_USERNAME"
+#define MQTT_PASSWORD "YOUR_HUAWEI_CLOUD_PASSWORD"
 
 // 华为云标准 Topic 格式
 #define PUBLISH_TOPIC   "$oc/devices/" DEVICE_ID "/sys/properties/report"  // 属性上报

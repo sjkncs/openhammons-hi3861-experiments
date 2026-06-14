@@ -36,9 +36,9 @@ TOPIC_LED_CONTROL = "smart_home/led/control"      # 控制LED
 TOPIC_STATUS_REPORT = "smart_home/hi3861/status" # 设备状态上报
 TOPIC_GAS_SENSOR = "gas_sensor/data"             # 燃气传感器数据
 
-# 华为云 MQTT 配置 (可选)
-HUAWEI_MQTT_BROKER = "a160268647.iot-mqtts.cn-north-4.myhuaweicloud.com"
-HUAWEI_MQTT_PORT = 1883
+# 华为云 MQTT 配置 (占位符; 真实地址请从环境变量 HUAWEI_MQTT_BROKER 读取, 不要 commit 真实值)
+HUAWEI_MQTT_BROKER = os.environ.get("HUAWEI_MQTT_BROKER", "YOUR_HUAWEI_CLOUD_MQTT_BROKER")
+HUAWEI_MQTT_PORT = int(os.environ.get("HUAWEI_MQTT_PORT", "1883"))
 
 # ==================== 全局状态 ====================
 

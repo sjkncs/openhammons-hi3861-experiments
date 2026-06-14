@@ -1,4 +1,4 @@
-# Lab4 - 按键实验 BUILD.gn
+# Lab2 - ADC 按键实验 BUILD.gn
 
 static_library("key_demo") {
     sources = [

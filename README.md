@@ -78,7 +78,7 @@ hb build -f --target mqtt_gas_sensor   # 单独编译某个模块
 ```c
 #define WIFI_SSID     "YourSSID"
 #define WIFI_PASSWORD "YourPassword"
-#define HOST_ADDR     "a160268647.iot-mqtts.cn-north-4.myhuaweicloud.com"
+#define HOST_ADDR     "YOUR_HUAWEI_CLOUD_MQTT_BROKER"
 #define DEVICE_ID     "your_device_id"
 #define MQTT_PASSWORD "your_hmac_sha256_password"
 ```
