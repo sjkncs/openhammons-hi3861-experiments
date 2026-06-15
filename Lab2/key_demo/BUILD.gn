@@ -13,4 +13,9 @@ static_library("key_demo") {
         "//device/soc/hisilicon/hi3861v100/hi3861_adapter/kal",
         "//device/soc/hisilicon/hi3861v100/sdk_liteos/third_party/lwip_sack/include",
     ]
+
+    deps = [
+        "//device/soc/hisilicon/hi3861v100/sdk_liteos:hi_adc",
+        "//device/soc/hisilicon/hi3861v100/sdk_liteos:hi_io",
+    ]
 }

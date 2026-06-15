@@ -556,7 +556,7 @@ mqtt_reconnect:
 
         g_report_count++;
         MQTTYield(&g_mqtt_client, 5000);
-        osDelay(REPORT_INTERVAL_MS / 10);  // 上报间隔: 5秒
+        osDelay(REPORT_INTERVAL_MS / 10);  // 上报间隔: 0.5 秒 (osDelay 以 10ms 为单位)
     }
 }
 

@@ -1,4 +1,5 @@
 # Lab3 - UDP 服务器 BUILD.gn
+# 依赖: hi_wifi (WiFi 协议栈), lwip (TCP/IP 协议栈)
 
 static_library("udp_server") {
     sources = [
@@ -11,5 +12,10 @@ static_library("udp_server") {
         "//device/soc/hisilicon/hi3861v100/hi3861_adapter/hals/communication/wifi_lite/wifiservice",
         "//device/soc/hisilicon/hi3861v100/hi3861_adapter/kal",
         "//device/soc/hisilicon/hi3861v100/sdk_liteos/third_party/lwip_sack/include",
+    ]
+
+    deps = [
+        "//device/soc/hisilicon/hi3861v100/sdk_liteos:hi_wifi",
+        "//device/soc/hisilicon/hi3861v100/sdk_liteos:lwip",
     ]
 }

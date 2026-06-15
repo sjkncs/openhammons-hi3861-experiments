@@ -1,5 +1,4 @@
 # Lab4 - MQTT 本地实验 BUILD.gn
-# 需要依赖 third_party/pahomqtt:pahomqtt_static
 
 static_library("mqtt_local") {
     sources = [

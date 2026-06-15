@@ -273,7 +273,7 @@ mqtt_reconnect:
             printf("[MQTT] Status reported: %s\r\n", payload);
         }
 
-        osDelay(200);  // 每 20 秒上报一次
+        osDelay(200);  // 每 2 秒上报一次 (osDelay 以 10ms 为单位)
     }
 }
 

@@ -20,5 +20,6 @@ static_library("smart_home") {
 
     deps = [
         "//third_party/pahomqtt:pahomqtt_static",
+        "//device/soc/hisilicon/hi3861v100/sdk_liteos:hi_adc",
     ]
 }

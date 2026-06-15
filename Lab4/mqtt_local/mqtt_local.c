@@ -210,7 +210,7 @@ connect_retry:
             printf("[MQTT] Publish failed: %d\r\n", rc);
         }
 
-        osDelay(100);  // 每 10 秒发布一次
+        osDelay(10);  // 每 1 秒发布一次 (osDelay 以 10ms 为单位)
     }
 }
 

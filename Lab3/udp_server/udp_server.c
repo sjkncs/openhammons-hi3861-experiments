@@ -57,18 +57,18 @@ static void wifi_wpa_event_cb(const hi_wifi_event *hisi_event)
     if (hisi_event == NULL) return;
     switch (hisi_event->event) {
         case HI_WIFI_EVT_CONNECTED:
-            printf("[WiFi] Connected to AP\\r\\n");
+            printf("[WiFi] Connected to AP\r\n");
             netifapi_dhcp_start(g_lwip_netif);
             g_wifi_connected = 1;
             break;
         case HI_WIFI_EVT_DISCONNECTED:
-            printf("[WiFi] Disconnected\\r\\n");
+            printf("[WiFi] Disconnected\r\n");
             netifapi_dhcp_stop(g_lwip_netif);
             hi_sta_reset_addr(g_lwip_netif);
             g_wifi_connected = 0;
             break;
         case HI_WIFI_EVT_SCAN_DONE:
-            printf("[WiFi] Scan done\\r\\n");
+            printf("[WiFi] Scan done\r\n");
             break;
         default:
             break;
@@ -95,7 +95,7 @@ static int wifi_start_sta(void)
 
     ret = hi_wifi_sta_connect(&assoc_req);
     if (ret != HISI_OK) {
-        printf("[WiFi] Connect failed: %d\\r\\n", ret);
+        printf("[WiFi] Connect failed: %d\r\n", ret);
         return -1;
     }
     return 0;
@@ -105,31 +105,29 @@ static int wifi_init_and_connect(void)
 {
     int ret;
     char ifname[WIFI_IFNAME_MAX_SIZE + 1] = {0};
-    const unsigned char vap_num = APP_INIT_VAP_NUM;
-    const unsigned char user_num = APP_INIT_USR_NUM;
 
-    ret = hi_wifi_init(0);  // 不使用快速连接
+    ret = hi_wifi_init(0);
     if (ret != HISI_OK) {
-        printf("[WiFi] Init failed: %d\\r\\n", ret);
+        printf("[WiFi] Init failed: %d\r\n", ret);
         return -1;
     }
 
     ret = hi_wifi_start_sta();
     if (ret != HISI_OK) {
-        printf("[WiFi] Start STA failed\\r\\n");
+        printf("[WiFi] Start STA failed\r\n");
         return -1;
     }
 
     ret = hi_wifi_register_event_callback(wifi_wpa_event_cb);
     if (ret != HISI_OK) {
-        printf("[WiFi] Register event cb failed\\r\\n");
+        printf("[WiFi] Register event cb failed\r\n");
         return -1;
     }
 
     // 获取 netif
     g_lwip_netif = netifapi_netif_find("wlan0");
     if (g_lwip_netif == NULL) {
-        printf("[WiFi] netif not found\\r\\n");
+        printf("[WiFi] netif not found\r\n");
         return -1;
     }
 
@@ -147,25 +145,25 @@ void udp_server_thread(void *arg)
     struct sockaddr_in servaddr, clientaddr;
     int ret;
 
-    printf("[UDP] Waiting for WiFi connection...\\r\\n");
+    printf("[UDP] Waiting for WiFi connection...\r\n");
     while (!g_wifi_connected) {
         usleep(500000);  // 等待 500ms
     }
 
     // 等待 DHCP 获取 IP
-    printf("[UDP] Waiting for DHCP...\\r\\n");
+    printf("[UDP] Waiting for DHCP...\r\n");
     osDelay(100);  // 延迟 5 秒等待 DHCP
     char ip_str[16] = {0};
     ip4_addr_t addr;
     if (netifapi_netif_get_addr(g_lwip_netif, &addr) == 0) {
         snprintf(ip_str, sizeof(ip_str), "%s", ip4addr_ntoa(&addr));
-        printf("[UDP] Hi3861 IP: %s\\r\\n", ip_str);
+        printf("[UDP] Hi3861 IP: %s\r\n", ip_str);
     }
 
     // 创建 UDP 套接字
     sockfd = socket(PF_INET, SOCK_DGRAM, 0);
     if (sockfd < 0) {
-        printf("[UDP] Socket create failed\\r\\n");
+        printf("[UDP] Socket create failed\r\n");
         return;
     }
 
@@ -181,13 +179,13 @@ void udp_server_thread(void *arg)
 
     ret = bind(sockfd, (struct sockaddr *)&servaddr, sizeof(servaddr));
     if (ret < 0) {
-        printf("[UDP] Bind failed\\r\\n");
+        printf("[UDP] Bind failed\r\n");
         close(sockfd);
         return;
     }
 
-    printf("[UDP] Server started, listening on port %d\\r\\n", UDP_LISTEN_PORT);
-    printf("[UDP] Waiting for commands from PC...\\r\\n");
+    printf("[UDP] Server started, listening on port %d\r\n", UDP_LISTEN_PORT);
+    printf("[UDP] Waiting for commands from PC...\r\n");
 
     // 循环接收数据
     while (1) {
@@ -203,40 +201,40 @@ void udp_server_thread(void *arg)
             char *client_ip = inet_ntoa(clientaddr.sin_addr);
             unsigned short client_port = ntohs(clientaddr.sin_port);
 
-            printf("[UDP] %s:%d says: %s\\r\\n",
+            printf("[UDP] %s:%d says: %s\r\n",
                    client_ip, client_port, recv_buffer);
 
             // 简单的命令解析（实际项目可用 cJSON）
             // 格式: {"cmd":"forward"} 或 {"mode":"step"}
             if (strstr(recv_buffer, "\"cmd\"")) {
                 if (strstr(recv_buffer, "forward")) {
-                    printf("  -> CMD: FORWARD\\r\\n");
+                    printf("  -> CMD: FORWARD\r\n");
                 } else if (strstr(recv_buffer, "backward")) {
-                    printf("  -> CMD: BACKWARD\\r\\n");
+                    printf("  -> CMD: BACKWARD\r\n");
                 } else if (strstr(recv_buffer, "left")) {
-                    printf("  -> CMD: LEFT\\r\\n");
+                    printf("  -> CMD: LEFT\r\n");
                 } else if (strstr(recv_buffer, "right")) {
-                    printf("  -> CMD: RIGHT\\r\\n");
+                    printf("  -> CMD: RIGHT\r\n");
                 } else if (strstr(recv_buffer, "stop")) {
-                    printf("  -> CMD: STOP\\r\\n");
+                    printf("  -> CMD: STOP\r\n");
                 } else {
-                    printf("  -> Unknown cmd\\r\\n");
+                    printf("  -> Unknown cmd\r\n");
                 }
             } else if (strstr(recv_buffer, "\"mode\"")) {
                 if (strstr(recv_buffer, "step")) {
-                    printf("  -> MODE: STEP\\r\\n");
+                    printf("  -> MODE: STEP\r\n");
                 } else if (strstr(recv_buffer, "alway")) {
-                    printf("  -> MODE: ALWAYS\\r\\n");
+                    printf("  -> MODE: ALWAYS\r\n");
                 }
             } else {
-                printf("  -> Unknown message format\\r\\n");
+                printf("  -> Unknown message format\r\n");
             }
 
             // 向 PC 回复响应
             const char *response = "{\"result\":\"ok\"}";
             sendto(sockfd, response, strlen(response), 0,
                    (struct sockaddr *)&clientaddr, sizeof(clientaddr));
-            printf("[UDP] Response sent: %s\\r\\n", response);
+            printf("[UDP] Response sent: %s\r\n", response);
         }
     }
 
@@ -253,7 +251,7 @@ static void UDPApp_Entry(void)
     attr.priority = 25;
 
     if (osThreadNew((osThreadFunc_t)wifi_init_and_connect, NULL, &attr) == NULL) {
-        printf("[APP] Failed to create WiFi task\\r\\n");
+        printf("[APP] Failed to create WiFi task\r\n");
     }
 }
 
@@ -265,7 +263,7 @@ static void UDPServer_Entry(void)
     attr.priority = 26;
 
     if (osThreadNew((osThreadFunc_t)udp_server_thread, NULL, &attr) == NULL) {
-        printf("[APP] Failed to create UDP task\\r\\n");
+        printf("[APP] Failed to create UDP task\r\n");
     }
 }
 
