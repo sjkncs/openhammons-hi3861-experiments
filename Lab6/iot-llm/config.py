@@ -23,4 +23,4 @@ IOTDA_INSTANCE_ID = ""   # Leave empty for Basic Edition
 IOTDA_APP_ID = ""        # Leave empty for Basic Edition
 
 # ============ ZhiPu AI ============
-ZHIPU_API_KEY = ""
+ZHIPU_API_KEY = "e9206c59fc184c28a70423fbd654b537.6OJdlJqathKlNyes"

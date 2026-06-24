@@ -1,20 +1,36 @@
 """
-ZhiPu LLM Handler
+ZhiPu LLM Handler (GLM-5 with thinking mode)
 
 Functions:
   - ask_query(shadow_data, user_input): Generate natural language answer from device shadow
   - parse_command(user_input): Parse user text into structured JSON command
+
+Supports both zhipuai SDK and zai SDK (ZhipuAiClient).
 """
 
 import json
 from config import ZHIPU_API_KEY
 
+client = None
+
+# Try zai SDK first (newer), then zhipuai SDK
 try:
-    from zhipuai import ZhipuAI
-    client = ZhipuAI(api_key=ZHIPU_API_KEY) if ZHIPU_API_KEY else None
+    from zai import ZhipuAiClient
+    if ZHIPU_API_KEY:
+        client = ZhipuAiClient(api_key=ZHIPU_API_KEY)
+        print("[LLM] Using zai SDK (ZhipuAiClient)")
 except ImportError:
-    client = None
-    print("[LLM] WARNING: zhipuai not installed. Run: pip install zhipuai")
+    try:
+        from zhipuai import ZhipuAI
+        if ZHIPU_API_KEY:
+            client = ZhipuAI(api_key=ZHIPU_API_KEY)
+            print("[LLM] Using zhipuai SDK (ZhipuAI)")
+    except ImportError:
+        print("[LLM] WARNING: neither zai nor zhipuai installed. Run: pip install zhipuai")
+
+# Model name: prefer GLM-5, fallback to GLM-4-Flash
+MODEL_NAME = "glm-5"
+FALLBACK_MODEL = "glm-4-flash"
 
 
 def ask_query(shadow_data, user_input):
@@ -45,15 +61,26 @@ Answer (in Chinese, concise):"""
 
     try:
         response = client.chat.completions.create(
-            model="glm-4-flash",
+            model=MODEL_NAME,
             messages=[{"role": "user", "content": prompt}],
-            temperature=0.3,
-            max_tokens=200,
+            thinking={"type": "enabled"},
+            max_tokens=65536,
+            temperature=1.0,
         )
         return response.choices[0].message.content
     except Exception as e:
-        print(f"[LLM] Query error: {e}")
-        return _fallback_query(shadow_data)
+        print(f"[LLM] GLM-5 query error: {e}, trying fallback...")
+        try:
+            response = client.chat.completions.create(
+                model=FALLBACK_MODEL,
+                messages=[{"role": "user", "content": prompt}],
+                temperature=0.3,
+                max_tokens=200,
+            )
+            return response.choices[0].message.content
+        except Exception as e2:
+            print(f"[LLM] Fallback also failed: {e2}")
+            return _fallback_query(shadow_data)
 
 
 def _fallback_query(shadow_data):
@@ -108,12 +135,26 @@ Response (JSON only or NOT_COMMAND):"""
 
     try:
         response = client.chat.completions.create(
-            model="glm-4-flash",
+            model=MODEL_NAME,
             messages=[{"role": "user", "content": prompt}],
-            temperature=0.1,
-            max_tokens=50,
+            thinking={"type": "enabled"},
+            max_tokens=65536,
+            temperature=1.0,
         )
         result = response.choices[0].message.content.strip()
+    except Exception as e:
+        print(f"[LLM] GLM-5 parse error: {e}, trying fallback...")
+        try:
+            response = client.chat.completions.create(
+                model=FALLBACK_MODEL,
+                messages=[{"role": "user", "content": prompt}],
+                temperature=0.1,
+                max_tokens=50,
+            )
+            result = response.choices[0].message.content.strip()
+        except Exception as e2:
+            print(f"[LLM] Fallback also failed: {e2}")
+            return _fallback_parse(user_input)
 
         if result == "NOT_COMMAND" or result.startswith("NOT"):
             return None
