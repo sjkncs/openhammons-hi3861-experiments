@@ -1,13 +1,20 @@
 /**
- * Lab5: Huawei Cloud IoTDA + MQTT + MQ-2 Gas Sensor + LED Control
+ * Lab6: AIoT Full Chain - Gas + Temp/Humi + LED + Buzzer + LLM
  *
- * Task 1: Connect to Huawei Cloud IoTDA, report gas concentration
- * Task 2: Receive cloud commands, control LED(GPIO9), send response
+ * 8 Tasks implemented:
+ * Task 1: sensor.h - temperature/humidity fields in SensorData
+ * Task 2: sensor.c - InitTempHumiSensor() AHT20 init
+ * Task 3: sensor.c - GetTemperatureAndHumidity() sampling
+ * Task 4: sensor.c - ReadAllSensorData() unified read
+ * Task 5: main.c - temp/humidity string buffers
+ * Task 6: main.c - snprintf format to string
+ * Task 7: main.c - add temp/humidity to JSON report
+ * Task 8: main.c - parse buzzer commands (ALWAYS/FLASH/OFF)
  *
- * Data format:
- *   Report: {"services":[{"service_id":"GasValue","properties":{"gas_value":"23.45"}}]}
- *   Command: {"command_name":"cmd","paras":{"led":"ON"}}
- *   Response: {"result_code":0,"response_name":"COMMAND_RESPONSE","paras":{"result":"success"}}
+ * Product model:
+ *   Service: AirEnvironment
+ *   Properties: gas_concentration, temperature, humidity
+ *   Command: cmd (paras: led=ON/OFF, buzzer=ALWAYS/FLASH/OFF)
  */
 
 #include <stdio.h>
@@ -27,10 +34,10 @@
 #include "MQTTClient.h"
 #include "cJSON.h"
 
-#include "gas_sensor.h"
-#include "iot_gpio.h"
+#include "sensor.h"
+#include "output_control.h"
 
-/*==================== Config (replace with your values) ====================*/
+/*==================== Config ====================*/
 
 #define PARAM_HOTSPOT_SSID  "oh"
 #define PARAM_HOTSPOT_PSK   "12345678"
@@ -46,9 +53,9 @@
 #define SUBCRIB_TOPIC   "$oc/devices/" DEVICE_ID "/sys/commands/#"
 #define RESPONSE_TOPIC  "$oc/devices/" DEVICE_ID "/sys/commands/response"
 
-/*===================================================================*/
+#define SERVICE_ID "AirEnvironment"
 
-#define LED_CTRL_GPIO  9
+/*================================================*/
 
 static Network g_network;
 static MQTTClient g_mqtt_client;
@@ -74,7 +81,6 @@ static int wifi_connect(void)
 {
     WifiDeviceConfig config = {0};
     int netId = 0;
-
     strcpy(config.ssid, PARAM_HOTSPOT_SSID);
     strcpy(config.preSharedKey, PARAM_HOTSPOT_PSK);
     config.securityType = WIFI_SEC_TYPE_PSK;
@@ -84,74 +90,56 @@ static int wifi_connect(void)
     WifiScan();
     usleep(2000000);
 
-    WifiErrorCode err = WifiAddDevice(&config, &netId);
-    if (err != WIFI_SUCCESS) {
-        printf("[WiFi] AddDevice failed: %d\r\n", err);
-        return -1;
-    }
-    err = WifiEnableDevice(netId);
-    if (err != WIFI_SUCCESS) {
-        printf("[WiFi] EnableDevice failed: %d\r\n", err);
-        return -1;
-    }
+    WifiAddDevice(&config, &netId);
+    WifiEnableDevice(netId);
 
     int timeout = 20;
-    while (!g_wifi_connected && timeout > 0) {
-        usleep(500000);
-        timeout--;
-    }
-    if (!g_wifi_connected) {
-        printf("[WiFi] Connection timeout!\r\n");
-        return -1;
-    }
-    usleep(2000000);
+    while (!g_wifi_connected && timeout--) usleep(500000);
+    if (!g_wifi_connected) return -1;
 
+    usleep(2000000);
     struct netif *netif = netifapi_netif_find("wlan0");
     if (netif) {
         ip4_addr_t ip, nm, gw;
-        if (netifapi_netif_get_addr(netif, &ip, &nm, &gw) == ERR_OK) {
-            printf("[WiFi] IP: %s\r\n", ip4addr_ntoa(&ip));
-        }
+        netifapi_netif_get_addr(netif, &ip, &nm, &gw);
+        printf("[WiFi] IP: %s\r\n", ip4addr_ntoa(&ip));
     }
     return 0;
 }
 
-/* ==================== LED Control ==================== */
+/* ==================== Task 5-7: JSON Report ==================== */
 
-static void led_init(void)
+/**
+ * get_sensor_data_json - build JSON payload
+ * Task 5: string buffers for temp/humidity
+ * Task 6: snprintf float to string
+ * Task 7: add temp/humidity to properties
+ */
+static void get_sensor_data_json(char *out, int max_len)
 {
-    IoTGpioInit(LED_CTRL_GPIO);
-    IoTGpioSetDir(LED_CTRL_GPIO, IOT_GPIO_DIR_OUT);
-    IoTGpioSetOutputVal(LED_CTRL_GPIO, IOT_GPIO_VAL_HIGH);
-    printf("[LED] Initialized (GPIO%d)\r\n", LED_CTRL_GPIO);
-}
+    SensorData data = {0};
+    ReadAllSensorData(&data);
 
-static void led_on(void)
-{
-    IoTGpioSetOutputVal(LED_CTRL_GPIO, IOT_GPIO_VAL_LOW);
-    printf("[LED] ON\r\n");
-}
-
-static void led_off(void)
-{
-    IoTGpioSetOutputVal(LED_CTRL_GPIO, IOT_GPIO_VAL_HIGH);
-    printf("[LED] OFF\r\n");
-}
-
-/* ==================== JSON Payload ==================== */
-
-static void build_gas_payload(char *out, int max_len)
-{
-    float gas = GetGasLevel();
+    /* Task 5: string buffers */
     char gas_str[32];
-    snprintf(gas_str, sizeof(gas_str), "%.2f", gas);
+    char temp_str[32];   /* Task 5 new */
+    char humi_str[32];   /* Task 5 new */
 
+    /* Task 6: format to string */
+    snprintf(gas_str, sizeof(gas_str), "%.2f", data.gas_concentration);
+    snprintf(temp_str, sizeof(temp_str), "%.2f", data.temperature);  /* Task 6 */
+    snprintf(humi_str, sizeof(humi_str), "%.2f", data.humidity);     /* Task 6 */
+
+    /* Task 7: build JSON with all 3 properties */
     cJSON *root = cJSON_CreateObject();
     cJSON *services = cJSON_AddArrayToObject(root, "services");
     cJSON *service = cJSON_CreateObject();
-    cJSON_AddStringToObject(service, "service_id", "GasValue");
+    cJSON_AddStringToObject(service, "service_id", SERVICE_ID);
+
     cJSON *props = cJSON_CreateObject();
-    cJSON_AddStringToObject(props, "gas_value", gas_str);
+    cJSON_AddStringToObject(props, "gas_concentration", gas_str);
+    cJSON_AddStringToObject(props, "temperature", temp_str);   /* Task 7 */
+    cJSON_AddStringToObject(props, "humidity", humi_str);      /* Task 7 */
     cJSON_AddItemToObject(service, "properties", props);
     cJSON_AddItemToArray(services, service);
 
@@ -164,8 +152,12 @@ static void build_gas_payload(char *out, int max_len)
     cJSON_Delete(root);
 }
 
-/* ==================== MQTT Command Callback ==================== */
+/* ==================== Task 8: Command Callback ==================== */
 
+/**
+ * messageArrived - handle cloud commands
+ * Task 8: parse buzzer commands (ALWAYS/FLASH/OFF)
+ */
 static void messageArrived(MessageData *data)
 {
     char *payload = (char *)data->message->payload;
@@ -187,28 +179,41 @@ static void messageArrived(MessageData *data)
     }
 
     cJSON *root = cJSON_ParseWithLength(payload, payload_len);
-    if (!root) { printf("[MQTT] JSON parse error\r\n"); return; }
+    if (!root) { printf("[MQTT] JSON error\r\n"); return; }
 
     cJSON *cmd_name = cJSON_GetObjectItem(root, "command_name");
     cJSON *paras = cJSON_GetObjectItem(root, "paras");
 
-    /* Task 2: Parse LED command */
     if (cmd_name && cJSON_IsString(cmd_name) &&
-        strcmp(cJSON_GetStringValue(cmd_name), "cmd") == 0) {
-        if (paras && cJSON_IsObject(paras)) {
-            cJSON *led = cJSON_GetObjectItem(paras, "led");
-            if (led && cJSON_IsString(led)) {
-                const char *val = cJSON_GetStringValue(led);
-                if (strcmp(val, "ON") == 0) led_on();
-                else if (strcmp(val, "OFF") == 0) led_off();
-                printf("[MQTT] LED: %s\r\n", val);
+        strcmp(cJSON_GetStringValue(cmd_name), "cmd") == 0 && paras) {
+
+        /* LED control */
+        cJSON *led = cJSON_GetObjectItem(paras, "led");
+        if (led && cJSON_IsString(led)) {
+            const char *val = cJSON_GetStringValue(led);
+            if (strcmp(val, "ON") == 0) LedSet(1);
+            else if (strcmp(val, "OFF") == 0) LedSet(0);
+        }
+
+        /* Task 8: Buzzer control */
+        cJSON *buzzer = cJSON_GetObjectItem(paras, "buzzer");
+        if (buzzer && cJSON_IsString(buzzer)) {
+            const char *val = cJSON_GetStringValue(buzzer);
+            if (strcmp(val, "ALWAYS") == 0) {
+                BuzzerSet(BUZZER_ALWAYS);
+            } else if (strcmp(val, "FLASH") == 0) {
+                BuzzerSet(BUZZER_FLASH_ON);
+            } else if (strcmp(val, "OFF") == 0) {
+                BuzzerSet(BUZZER_OFF);
             }
+            printf("[MQTT] Buzzer: %s\r\n", val);
         }
     }
+
     cJSON_Delete(root);
 
-    /* Send command response */
-    if (request_id[0] != '\0') {
+    /* Send response */
+    if (request_id[0]) {
         char resp_topic[256], resp_payload[256];
         MQTTMessage msg;
         snprintf(resp_topic, sizeof(resp_topic),
@@ -218,29 +223,28 @@ static void messageArrived(MessageData *data)
                  "\"paras\":{\"result\":\"success\"}}");
         msg.qos = 0; msg.retained = 0;
         msg.payload = resp_payload; msg.payloadlen = strlen(resp_payload);
-        printf("[MQTT] Response sent\r\n");
         MQTTPublish(&g_mqtt_client, resp_topic, &msg);
+        printf("[MQTT] Response sent\r\n");
     }
 }
 
-/* ==================== MQTT Main Task ==================== */
+/* ==================== Main Task ==================== */
 
-static void MQTTDemoTask(void)
+static void MainTask(void)
 {
-    int rc;
-    printf("[MQTT] === Lab5: Huawei Cloud IoTDA + Gas Sensor ===\r\n");
+    printf("[Lab6] === AIoT: Gas+Temp/Humi+LED+Buzzer ===\r\n");
 
-    GasSensor_Init();
-    led_init();
+    InitAllSensors();
+    OutputControl_Init();
 
-    printf("[MQTT] Connecting WiFi: %s\r\n", PARAM_HOTSPOT_SSID);
-    if (wifi_connect() < 0) { printf("[MQTT] WiFi failed!\r\n"); return; }
+    if (wifi_connect() < 0) {
+        printf("[Lab6] WiFi failed!\r\n");
+        return;
+    }
 
 mqtt_reconnect:
     NetworkInit(&g_network);
-    printf("[MQTT] Connecting to %s:%d ...\r\n", HOST_ADDR, HOST_PORT);
-    rc = NetworkConnect(&g_network, HOST_ADDR, HOST_PORT);
-    if (rc != 0) { osDelay(30); goto mqtt_reconnect; }
+    NetworkConnect(&g_network, HOST_ADDR, HOST_PORT);
 
     MQTTClientInit(&g_mqtt_client, &g_network, 3000,
                    g_send_buf, sizeof(g_send_buf),
@@ -252,39 +256,40 @@ mqtt_reconnect:
     conn.username.cstring = MQTT_USERNAME;
     conn.password.cstring = MQTT_PASSWORD;
 
-    rc = MQTTConnect(&g_mqtt_client, &conn);
+    int rc = MQTTConnect(&g_mqtt_client, &conn);
     if (rc != 0) { NetworkDisconnect(&g_network); osDelay(30); goto mqtt_reconnect; }
     printf("[MQTT] Connected to IoTDA!\r\n");
 
     MQTTSubscribe(&g_mqtt_client, SUBCRIB_TOPIC, QOS1, messageArrived);
-    printf("[MQTT] Subscribed\r\n");
 
-    int count = 0;
+    int count = 0, flash_counter = 0;
     while (1) {
         char payload[512];
         MQTTMessage msg;
-        build_gas_payload(payload, sizeof(payload));
+        get_sensor_data_json(payload, sizeof(payload));
         msg.qos = QOS0; msg.retained = 0;
         msg.payload = payload; msg.payloadlen = strlen(payload);
         printf("[MQTT] Report #%d: %s\r\n", count++, payload);
         rc = MQTTPublish(&g_mqtt_client, PUBLISH_TOPIC, &msg);
         if (rc != 0) {
-            NetworkDisconnect(&g_network);
-            MQTTDisconnect(&g_mqtt_client);
+            NetworkDisconnect(&g_network); MQTTDisconnect(&g_mqtt_client);
             osDelay(50); goto mqtt_reconnect;
         }
+        /* Buzzer flash toggle every ~500ms */
+        flash_counter++;
+        if (flash_counter >= 5) { BuzzerFlashToggle(); flash_counter = 0; }
         MQTTYield(&g_mqtt_client, 5000);
         osDelay(100);
     }
 }
 
-static void Lab5Entry(void)
+static void Lab6Entry(void)
 {
     osThreadAttr_t attr = {0};
-    attr.name = "MQTTDemoTask";
+    attr.name = "MainTask";
     attr.stack_size = 10240;
     attr.priority = osPriorityNormal;
-    osThreadNew((osThreadFunc_t)MQTTDemoTask, NULL, &attr);
+    osThreadNew((osThreadFunc_t)MainTask, NULL, &attr);
 }
 
-APP_FEATURE_INIT(Lab5Entry);
+APP_FEATURE_INIT(Lab6Entry);

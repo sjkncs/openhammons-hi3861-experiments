@@ -1,9 +1,11 @@
-# Lab5 - Huawei Cloud MQTT Gas Sensor BUILD.gn
+# Lab6 - AIoT Gas Sensor + Temp/Humi + LED + Buzzer
 
 static_library("mqtt_gas_sensor") {
     sources = [
         "main.c",
-        "gas_sensor.c",
+        "sensor.c",
+        "aht20.c",
+        "output_control.c",
     ]
     include_dirs = [
         "//utils/native/lite/include",
@@ -11,6 +13,7 @@ static_library("mqtt_gas_sensor") {
         "//base/iot_hardware/peripheral/interfaces/kits",
         "//base/iothardware/peripheral/interfaces/inner_api",
         "//device/soc/hisilicon/hi3861v100/sdk_liteos/include",
+        "//device/soc/hisilicon/hi3861v100/hi3861_adapter/kal",
         "//third_party/cJSON",
         "//applications/sample/wifi-iot/library/third_party/paho_mqtt/MQTTPacket/src",
         "//applications/sample/wifi-iot/library/third_party/paho_mqtt/MQTTClient-C/src",

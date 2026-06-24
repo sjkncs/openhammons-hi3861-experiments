@@ -1,0 +1,18 @@
+# Lab2 任务一: 温湿度智能LED控制 BUILD.gn
+
+static_library("app") {
+    sources = [
+        "aht20_test.c",
+        "../aht20.c",
+    ]
+    include_dirs = [
+        "//utils/native/lite/include",
+        "//kernel/liteos_m/kal",
+        "//kernel/liteos_m/kal/cmsis",
+        "//base/iot_hardware/peripheral/interfaces/kits",
+        "//base/iothardware/peripheral/interfaces/inner_api",
+        "//device/soc/hisilicon/hi3861v100/sdk_liteos/include",
+        "//device/soc/hisilicon/hi3861v100/hi3861_adapter/kal",
+        "..",
+    ]
+}

@@ -1,0 +1,93 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Lab6 - AIoT Smart Control</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { font-family: "Microsoft YaHei", sans-serif; background: #f5f5f5; }
+        .container { max-width: 800px; margin: 0 auto; padding: 20px; }
+        h1 { text-align: center; color: #1a1a2e; margin-bottom: 20px; }
+        .chat-box {
+            background: white; border-radius: 12px; padding: 20px;
+            min-height: 400px; max-height: 500px; overflow-y: auto;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1); margin-bottom: 16px;
+        }
+        .message { margin-bottom: 12px; padding: 10px 14px; border-radius: 8px; max-width: 80%; }
+        .message.user { background: #2e75b6; color: white; margin-left: auto; text-align: right; }
+        .message.bot { background: #e8e8e8; color: #333; }
+        .input-area { display: flex; gap: 10px; }
+        .input-area input {
+            flex: 1; padding: 12px 16px; border: 2px solid #ddd; border-radius: 8px;
+            font-size: 16px; outline: none;
+        }
+        .input-area input:focus { border-color: #2e75b6; }
+        .input-area button {
+            padding: 12px 24px; background: #2e75b6; color: white; border: none;
+            border-radius: 8px; font-size: 16px; cursor: pointer;
+        }
+        .input-area button:hover { background: #1f5f8b; }
+        .quick-btns { display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 16px; }
+        .quick-btns button {
+            padding: 8px 16px; background: #fff; border: 1px solid #2e75b6;
+            color: #2e75b6; border-radius: 20px; cursor: pointer; font-size: 14px;
+        }
+        .quick-btns button:hover { background: #2e75b6; color: white; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>AIoT Smart Control Panel</h1>
+        <div class="quick-btns">
+            <button onclick="send('current gas concentration')">Gas Concentration</button>
+            <button onclick="send('current temperature')">Temperature</button>
+            <button onclick="send('current humidity')">Humidity</button>
+            <button onclick="send('check device status')">Device Status</button>
+            <button onclick="send('turn on light')">Light ON</button>
+            <button onclick="send('turn off light')">Light OFF</button>
+            <button onclick="send('buzzer flash')">Buzzer Flash</button>
+            <button onclick="send('buzzer off')">Buzzer OFF</button>
+        </div>
+        <div class="chat-box" id="chatBox"></div>
+        <div class="input-area">
+            <input type="text" id="userInput" placeholder="Enter command or question..." onkeydown="if(event.key==='Enter')sendInput()">
+            <button onclick="sendInput()">Send</button>
+        </div>
+    </div>
+    <script>
+        function addMessage(text, isUser) {
+            const box = document.getElementById('chatBox');
+            const div = document.createElement('div');
+            div.className = 'message ' + (isUser ? 'user' : 'bot');
+            div.textContent = text;
+            box.appendChild(div);
+            box.scrollTop = box.scrollHeight;
+        }
+
+        async function send(text) {
+            addMessage(text, true);
+            try {
+                const resp = await fetch('/chat', {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify({message: text})
+                });
+                const data = await resp.json();
+                addMessage(data.reply, false);
+            } catch (e) {
+                addMessage('Network error: ' + e.message, false);
+            }
+        }
+
+        function sendInput() {
+            const input = document.getElementById('userInput');
+            const text = input.value.trim();
+            if (text) {
+                send(text);
+                input.value = '';
+            }
+        }
+    </script>
+</body>
+</html>
