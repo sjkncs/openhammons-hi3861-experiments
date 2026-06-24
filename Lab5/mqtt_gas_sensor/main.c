@@ -1,13 +1,18 @@
 /**
  * Lab5: Huawei Cloud IoTDA + MQTT + MQ-2 Gas Sensor + LED Control
  *
- * Task 1: Connect to Huawei Cloud IoTDA, report gas concentration
- * Task 2: Receive cloud commands, control LED(GPIO9), send response
+ * Task 1: Connect to Huawei Cloud IoTDA, report gas concentration (GasValue service)
+ * Task 2: Receive cloud commands, control LED (GPIO9), send command response
  *
  * Data format:
- *   Report: {"services":[{"service_id":"GasValue","properties":{"gas_value":"23.45"}}]}
- *   Command: {"command_name":"cmd","paras":{"led":"ON"}}
+ *   Report:   {"services":[{"service_id":"GasValue","properties":{"gas_value":"23.45"}}]}
+ *   Command:  {"command_name":"cmd","paras":{"led":"ON"}}
  *   Response: {"result_code":0,"response_name":"COMMAND_RESPONSE","paras":{"result":"success"}}
+ *
+ * Topics (Huawei Cloud standard):
+ *   Publish:  $oc/devices/{device_id}/sys/properties/report
+ *   Subscribe: $oc/devices/{device_id}/sys/commands/#
+ *   Response: $oc/devices/{device_id}/sys/commands/response
  */
 
 #include <stdio.h>
@@ -18,8 +23,7 @@
 #include "ohos_init.h"
 #include "cmsis_os2.h"
 
-#include "wifi_device.h"
-#include "wifi_hotspot.h"
+#include "hi_wifi_api.h"
 #include "lwip/ip_addr.h"
 #include "lwip/netifapi.h"
 #include "lwip/sockets.h"
@@ -54,17 +58,19 @@ static Network g_network;
 static MQTTClient g_mqtt_client;
 static unsigned char g_send_buf[2000];
 static unsigned char g_recv_buf[2000];
+static struct netif *g_lwip_netif = NULL;
 static volatile int g_wifi_connected = 0;
 
-/* ==================== WiFi ==================== */
+/* ==================== WiFi (using hi_wifi_api.h) ==================== */
 
-static void wifi_event_cb(const WifiEvent *event)
+static void wifi_event_cb(const hi_wifi_event *event)
 {
     if (!event) return;
-    if (event->event == WIFI_EVT_CONNECTED) {
+    if (event->event == HI_WIFI_EVT_CONNECTED) {
         printf("[WiFi] Connected\r\n");
+        netifapi_dhcp_start(g_lwip_netif);
         g_wifi_connected = 1;
-    } else if (event->event == WIFI_EVT_DISCONNECTED) {
+    } else if (event->event == HI_WIFI_EVT_DISCONNECTED) {
         printf("[WiFi] Disconnected\r\n");
         g_wifi_connected = 0;
     }
@@ -72,30 +78,40 @@ static void wifi_event_cb(const WifiEvent *event)
 
 static int wifi_connect(void)
 {
-    WifiDeviceConfig config = {0};
-    int netId = 0;
+    int ret;
+    hi_wifi_assoc_request assoc_req = {0};
 
-    strcpy(config.ssid, PARAM_HOTSPOT_SSID);
-    strcpy(config.preSharedKey, PARAM_HOTSPOT_PSK);
-    config.securityType = WIFI_SEC_TYPE_PSK;
+    /* Set SSID */
+    memcpy(assoc_req.ssid, PARAM_HOTSPOT_SSID, strlen(PARAM_HOTSPOT_SSID));
+    assoc_req.auth = HI_WIFI_SECURITY_WPA2PSK;
+    memcpy(assoc_req.key, PARAM_HOTSPOT_PSK, strlen(PARAM_HOTSPOT_PSK));
 
-    WifiInit();
-    WifiRegisterCallBack(wifi_event_cb);
-    WifiScan();
-    usleep(2000000);
-
-    WifiErrorCode err = WifiAddDevice(&config, &netId);
-    if (err != WIFI_SUCCESS) {
-        printf("[WiFi] AddDevice failed: %d\r\n", err);
-        return -1;
-    }
-    err = WifiEnableDevice(netId);
-    if (err != WIFI_SUCCESS) {
-        printf("[WiFi] EnableDevice failed: %d\r\n", err);
+    /* Init WiFi, register callback, connect */
+    ret = hi_wifi_init(0);
+    if (ret != HISI_OK) {
+        printf("[WiFi] Init failed: %d\r\n", ret);
         return -1;
     }
 
-    int timeout = 20;
+    g_lwip_netif = netifapi_netif_find("wlan0");
+    if (!g_lwip_netif) {
+        printf("[WiFi] netif not found\r\n");
+        return -1;
+    }
+
+    ret = hi_wifi_register_event_callback(wifi_event_cb);
+    if (ret != HISI_OK) {
+        printf("[WiFi] Register callback failed\r\n");
+    }
+
+    ret = hi_wifi_sta_connect(&assoc_req);
+    if (ret != HISI_OK) {
+        printf("[WiFi] Connect failed: %d\r\n", ret);
+        return -1;
+    }
+
+    /* Wait for connection */
+    int timeout = 40;  /* 20 seconds */
     while (!g_wifi_connected && timeout > 0) {
         usleep(500000);
         timeout--;
@@ -104,14 +120,14 @@ static int wifi_connect(void)
         printf("[WiFi] Connection timeout!\r\n");
         return -1;
     }
+
+    /* Wait for DHCP */
     usleep(2000000);
 
-    struct netif *netif = netifapi_netif_find("wlan0");
-    if (netif) {
-        ip4_addr_t ip, nm, gw;
-        if (netifapi_netif_get_addr(netif, &ip, &nm, &gw) == ERR_OK) {
-            printf("[WiFi] IP: %s\r\n", ip4addr_ntoa(&ip));
-        }
+    /* Print IP */
+    ip4_addr_t ip, nm, gw;
+    if (netifapi_netif_get_addr(g_lwip_netif, &ip, &nm, &gw) == ERR_OK) {
+        printf("[WiFi] IP: %s\r\n", ip4addr_ntoa(&ip));
     }
     return 0;
 }
@@ -176,7 +192,7 @@ static void messageArrived(MessageData *data)
     printf("[MQTT] Command on %.*s\r\n", topic_len, topic);
     printf("[MQTT] Payload: %.*s\r\n", payload_len, payload);
 
-    /* Extract request_id */
+    /* Extract request_id from topic */
     char request_id[64] = {0};
     char *p = strstr(topic, "request_id=");
     if (p) {
@@ -247,7 +263,8 @@ mqtt_reconnect:
                    g_recv_buf, sizeof(g_recv_buf));
 
     MQTTPacket_connectData conn = MQTTPacket_connectData_initializer;
-    conn.keepAliveInterval = 60; conn.cleansession = 1;
+    conn.keepAliveInterval = 60;
+    conn.cleansession = 1;
     conn.clientID.cstring = MQTT_CLIENT_ID;
     conn.username.cstring = MQTT_USERNAME;
     conn.password.cstring = MQTT_PASSWORD;

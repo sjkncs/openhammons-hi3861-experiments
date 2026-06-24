@@ -25,8 +25,7 @@
 #include "ohos_init.h"
 #include "cmsis_os2.h"
 
-#include "wifi_device.h"
-#include "wifi_hotspot.h"
+#include "hi_wifi_api.h"
 #include "lwip/ip_addr.h"
 #include "lwip/netifapi.h"
 #include "lwip/sockets.h"
@@ -61,17 +60,19 @@ static Network g_network;
 static MQTTClient g_mqtt_client;
 static unsigned char g_send_buf[2000];
 static unsigned char g_recv_buf[2000];
+static struct netif *g_lwip_netif = NULL;
 static volatile int g_wifi_connected = 0;
 
-/* ==================== WiFi ==================== */
+/* ==================== WiFi (using hi_wifi_api.h) ==================== */
 
-static void wifi_event_cb(const WifiEvent *event)
+static void wifi_event_cb(const hi_wifi_event *event)
 {
     if (!event) return;
-    if (event->event == WIFI_EVT_CONNECTED) {
+    if (event->event == HI_WIFI_EVT_CONNECTED) {
         printf("[WiFi] Connected\r\n");
+        netifapi_dhcp_start(g_lwip_netif);
         g_wifi_connected = 1;
-    } else if (event->event == WIFI_EVT_DISCONNECTED) {
+    } else if (event->event == HI_WIFI_EVT_DISCONNECTED) {
         printf("[WiFi] Disconnected\r\n");
         g_wifi_connected = 0;
     }
@@ -79,29 +80,41 @@ static void wifi_event_cb(const WifiEvent *event)
 
 static int wifi_connect(void)
 {
-    WifiDeviceConfig config = {0};
-    int netId = 0;
-    strcpy(config.ssid, PARAM_HOTSPOT_SSID);
-    strcpy(config.preSharedKey, PARAM_HOTSPOT_PSK);
-    config.securityType = WIFI_SEC_TYPE_PSK;
+    int ret;
+    hi_wifi_assoc_request assoc_req = {0};
 
-    WifiInit();
-    WifiRegisterCallBack(wifi_event_cb);
-    WifiScan();
-    usleep(2000000);
+    memcpy(assoc_req.ssid, PARAM_HOTSPOT_SSID, strlen(PARAM_HOTSPOT_SSID));
+    assoc_req.auth = HI_WIFI_SECURITY_WPA2PSK;
+    memcpy(assoc_req.key, PARAM_HOTSPOT_PSK, strlen(PARAM_HOTSPOT_PSK));
 
-    WifiAddDevice(&config, &netId);
-    WifiEnableDevice(netId);
+    ret = hi_wifi_init(0);
+    if (ret != HISI_OK) {
+        printf("[WiFi] Init failed: %d\r\n", ret);
+        return -1;
+    }
 
-    int timeout = 20;
+    g_lwip_netif = netifapi_netif_find("wlan0");
+    if (!g_lwip_netif) {
+        printf("[WiFi] netif not found\r\n");
+        return -1;
+    }
+
+    hi_wifi_register_event_callback(wifi_event_cb);
+
+    ret = hi_wifi_sta_connect(&assoc_req);
+    if (ret != HISI_OK) {
+        printf("[WiFi] Connect failed: %d\r\n", ret);
+        return -1;
+    }
+
+    int timeout = 40;
     while (!g_wifi_connected && timeout--) usleep(500000);
     if (!g_wifi_connected) return -1;
 
     usleep(2000000);
-    struct netif *netif = netifapi_netif_find("wlan0");
-    if (netif) {
-        ip4_addr_t ip, nm, gw;
-        netifapi_netif_get_addr(netif, &ip, &nm, &gw);
+
+    ip4_addr_t ip, nm, gw;
+    if (netifapi_netif_get_addr(g_lwip_netif, &ip, &nm, &gw) == ERR_OK) {
         printf("[WiFi] IP: %s\r\n", ip4addr_ntoa(&ip));
     }
     return 0;
@@ -109,12 +122,6 @@ static int wifi_connect(void)
 
 /* ==================== Task 5-7: JSON Report ==================== */
 
-/**
- * get_sensor_data_json - build JSON payload
- * Task 5: string buffers for temp/humidity
- * Task 6: snprintf float to string
- * Task 7: add temp/humidity to properties
- */
 static void get_sensor_data_json(char *out, int max_len)
 {
     SensorData data = {0};
@@ -127,8 +134,8 @@ static void get_sensor_data_json(char *out, int max_len)
 
     /* Task 6: format to string */
     snprintf(gas_str, sizeof(gas_str), "%.2f", data.gas_concentration);
-    snprintf(temp_str, sizeof(temp_str), "%.2f", data.temperature);  /* Task 6 */
-    snprintf(humi_str, sizeof(humi_str), "%.2f", data.humidity);     /* Task 6 */
+    snprintf(temp_str, sizeof(temp_str), "%.2f", data.temperature);
+    snprintf(humi_str, sizeof(humi_str), "%.2f", data.humidity);
 
     /* Task 7: build JSON with all 3 properties */
     cJSON *root = cJSON_CreateObject();
@@ -154,10 +161,6 @@ static void get_sensor_data_json(char *out, int max_len)
 
 /* ==================== Task 8: Command Callback ==================== */
 
-/**
- * messageArrived - handle cloud commands
- * Task 8: parse buzzer commands (ALWAYS/FLASH/OFF)
- */
 static void messageArrived(MessageData *data)
 {
     char *payload = (char *)data->message->payload;
@@ -168,7 +171,6 @@ static void messageArrived(MessageData *data)
     printf("[MQTT] Command on %.*s\r\n", topic_len, topic);
     printf("[MQTT] Payload: %.*s\r\n", payload_len, payload);
 
-    /* Extract request_id */
     char request_id[64] = {0};
     char *p = strstr(topic, "request_id=");
     if (p) {
@@ -199,17 +201,12 @@ static void messageArrived(MessageData *data)
         cJSON *buzzer = cJSON_GetObjectItem(paras, "buzzer");
         if (buzzer && cJSON_IsString(buzzer)) {
             const char *val = cJSON_GetStringValue(buzzer);
-            if (strcmp(val, "ALWAYS") == 0) {
-                BuzzerSet(BUZZER_ALWAYS);
-            } else if (strcmp(val, "FLASH") == 0) {
-                BuzzerSet(BUZZER_FLASH_ON);
-            } else if (strcmp(val, "OFF") == 0) {
-                BuzzerSet(BUZZER_OFF);
-            }
+            if (strcmp(val, "ALWAYS") == 0) BuzzerSet(BUZZER_ALWAYS);
+            else if (strcmp(val, "FLASH") == 0) BuzzerSet(BUZZER_FLASH_ON);
+            else if (strcmp(val, "OFF") == 0) BuzzerSet(BUZZER_OFF);
             printf("[MQTT] Buzzer: %s\r\n", val);
         }
     }
-
     cJSON_Delete(root);
 
     /* Send response */
@@ -275,7 +272,6 @@ mqtt_reconnect:
             NetworkDisconnect(&g_network); MQTTDisconnect(&g_mqtt_client);
             osDelay(50); goto mqtt_reconnect;
         }
-        /* Buzzer flash toggle every ~500ms */
         flash_counter++;
         if (flash_counter >= 5) { BuzzerFlashToggle(); flash_counter = 0; }
         MQTTYield(&g_mqtt_client, 5000);

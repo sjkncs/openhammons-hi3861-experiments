@@ -70,26 +70,25 @@ static void BuzzerBeep(int count)
     }
 }
 
-/* ==================== 按键中断回调 ==================== */
+/* ==================== 按键初始化 ==================== */
 static void ButtonIsrFunc(char *arg)
 {
     (void)arg;
     /* 切换显示模式 (循环) */
     g_ButtonState = (enum ButtonState)((g_ButtonState + 1) % 4);
     g_clearScreenFlag = 1;
-    printf("[BUTTON] Mode changed to: %d\r\n", g_ButtonState);
 }
 
-/* ==================== 按键初始化 ==================== */
 static void ButtonInit(void)
 {
     IoTGpioInit(BUTTON_GPIO);
     IoTGpioSetDir(BUTTON_GPIO, IOT_GPIO_DIR_IN);
 
-    /* 注册下降沿中断 */
-    IoTGpioSetIsrMask(BUTTON_GPIO, IOT_GPIO_INT_TYPE_FALLING, IOT_GPIO_INT_POLARITY_NONE);
-    IoTGpioRegisterIsrFunc(BUTTON_GPIO, IOT_INT_TYPE_LEVEL, IOT_GPIO_INT_POLARITY_FALL,
-                           (void (*)(char *))ButtonIsrFunc, NULL);
+    /* 注册下降沿中断: intType=EDGE, intPolarity=FALL */
+    IoTGpioSetIsrMask(BUTTON_GPIO, 0);  /* mask=0: enable interrupt */
+    IoTGpioRegisterIsrFunc(BUTTON_GPIO, IOT_INT_TYPE_EDGE,
+                           IOT_GPIO_EDGE_FALL_LEVEL_LOW,
+                           ButtonIsrFunc, NULL);
     printf("[BUTTON] GPIO%d interrupt registered\r\n", BUTTON_GPIO);
 }
 

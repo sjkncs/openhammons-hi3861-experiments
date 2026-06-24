@@ -19,7 +19,10 @@ from config import (
 
 
 def _sign(key, msg):
-    return hmac.new(key, msg.encode("utf-8"), hashlib.sha256).digest()
+    """HMAC-SHA256 signing helper."""
+    if isinstance(msg, str):
+        msg = msg.encode("utf-8")
+    return hmac.new(key, msg, hashlib.sha256).digest()
 
 
 def _get_signature_key(secret, date_stamp, region, service):

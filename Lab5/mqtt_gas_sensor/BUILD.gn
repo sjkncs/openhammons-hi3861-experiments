@@ -11,12 +11,14 @@ static_library("mqtt_gas_sensor") {
         "//base/iot_hardware/peripheral/interfaces/kits",
         "//base/iothardware/peripheral/interfaces/inner_api",
         "//device/soc/hisilicon/hi3861v100/sdk_liteos/include",
+        "//device/soc/hisilicon/hi3861v100/hi3861_adapter/kal",
+        "//device/soc/hisilicon/hi3861v100/hi3861_adapter/hals/communication/wifi_lite/wifiservice",
+        "//device/soc/hisilicon/hi3861v100/sdk_liteos/third_party/lwip_sack/include",
         "//third_party/cJSON",
         "//applications/sample/wifi-iot/library/third_party/paho_mqtt/MQTTPacket/src",
         "//applications/sample/wifi-iot/library/third_party/paho_mqtt/MQTTClient-C/src",
         "//applications/sample/wifi-iot/library/third_party/paho_mqtt/MQTTClient-C/src/liteOS",
         "//applications/sample/wifi-iot/library/easy_wifi",
-        "//foundation/communication/wifi_lite/interfaces/wifiservice",
     ]
     deps = [
         "//applications/sample/wifi-iot/library/third_party/paho_mqtt/:pahomqtt_static",
